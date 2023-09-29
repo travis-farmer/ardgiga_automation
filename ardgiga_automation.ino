@@ -2,7 +2,7 @@
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <WiFi.h>
-#include "arduino_secrets.h" 
+#include "arduino_secrets.h"
 ///////please enter your sensitive data in the Secret tab/arduino_secrets.h
 char ssid[] = WSSID;        // your network SSID (name)
 char pass[] = WPSWD;        // your network password (use for WPA, or use as key for WEP)
@@ -10,12 +10,11 @@ int keyIndex = 0;                 // your network key Index number (needed only 
 
 int status = WL_IDLE_STATUS;
 
-#define RELAY_HEAT 30
-#define RELAY_COOL 31
-#define RELAY_FAN 32
-#define RELAY_LIGHTS 2
+#define RELAY_HEAT 32
+#define RELAY_COOL 33
+#define RELAY_FAN 34
+#define RELAY_LIGHTS 22
 
-#define SWITCH_LIGHTS 22
 
 
 DHTNEW mySensor(48);
@@ -42,20 +41,15 @@ bool stateHeating = false;
 bool stateCooling = false;
 bool stateFan = false;
 bool stateCool = false;
-bool stateLights1 = false;
-bool stateComp1 = false;
-bool stateLights1SW = false;
-bool stateComp1SW = false;
 bool state_act_lights1 = false;
-bool state_act_comp1 = false;
 unsigned long coolTimer = 0UL;
 String setLights1 = "";
 String setComp1 = "";
 
 boolean reconnect() {
   if (client.connect("ArduinoRoom")) {
-    client.subscribe("roomhvac/mode/set");
-    client.subscribe("roomhvac/temperature/set");
+    client.subscribe("room/hvac/mode/set");
+    client.subscribe("room/hvac/temperature/set");
     client.subscribe("room/switch/lights1/set");
 
   }
@@ -70,8 +64,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
   tmpStr[length] = 0x00; // terminate the char string with a null
 
-  if (tmpTopic == "roomhvac/mode/set") {setMode = tmpStr; }
-  else if (tmpTopic == "roomhvac/temperature/set") { setTemp = atoi(tmpStr); }
+  if (tmpTopic == "room/hvac/mode/set") {setMode = tmpStr; }
+  else if (tmpTopic == "room/hvac/temperature/set") { setTemp = atoi(tmpStr); }
   else if (tmpTopic == "room/switch/lights1/set") { setLights1 = tmpStr; }
 
 }
@@ -100,19 +94,10 @@ void setup() {
   delay(1500);
   lastReconnectAttempt = 0;
 
-  /*for (int i=30; i<= 46; i++) {
-    pinMode(i, OUTPUT);
-    digitalWrite(i, HIGH); // Relays are active with a LOW signal
-  }*/
-
-  for (int i = 30; i <= 34; i++) {
+  for (int i = 22; i <= 34; i++) {
     pinMode(i, OUTPUT);
     digitalWrite(i,HIGH);
   }
-  pinMode(RELAY_LIGHTS,OUTPUT);
-  digitalWrite(RELAY_LIGHTS,LOW);
-
-  pinMode(SWITCH_LIGHTS,INPUT_PULLUP);
 
 }
 
@@ -149,20 +134,24 @@ void loop() {
      *
      */
     if (setLights1 == "ON") {
-        stateLights1 = true;
-    } else if (setLights1 == "OFF") {
-        stateLights1 = false;
-    }
-    if (digitalRead(SWITCH_LIGHTS) == HIGH) {stateLights1SW = true;}
-    else {stateLights1SW = false;}
-    if (stateLights1 == stateLights1SW) {
         digitalWrite(RELAY_LIGHTS,HIGH);
         state_act_lights1 = true;
-    } else {
+    } else if (setLights1 == "OFF") {
         digitalWrite(RELAY_LIGHTS,LOW);
         state_act_lights1 = false;
     }
 
+    /*if (state_act_lights1 == true) {
+        client.publish("room/switch/lights1","ON");
+    } else {
+        client.publish("room/switch/lights1","OFF");
+    }*/
+
+    if (state_act_lights1 == true) {
+        client.publish("room/switch/lights1/state","ON");
+    } else {
+        client.publish("room/switch/lights1/state","OFF");
+    }
 
     /** \brief handle thermostat
      *
@@ -198,32 +187,18 @@ void loop() {
     else if (stateCooling == true && millis() - coolTimer >= 30000 && stateFan == true && stateCool == false) {stateCool = true; coolTimer = millis(); digitalWrite(RELAY_COOL, LOW);}
     else if(stateCooling == false) {digitalWrite(RELAY_COOL, HIGH); digitalWrite(RELAY_FAN, HIGH); stateFan = false; stateCool = false;}
 
-    /** \brief setup and send values and states
-     *
-     *
-     */
     char sz[32];
     String strAction = "";
     if (stateHeating == true) {strAction = "heating";}
     else if (stateCooling == true) {strAction = "cooling";}
     else {strAction = "off";}
     strAction.toCharArray(sz, 32);
-    client.publish("roomhvac/action",sz);
+    client.publish("room/hvac/action",sz);
     sprintf(sz, "%6.2f", tempF);
-    client.publish("roomhvac/temperature/current",sz);
+    client.publish("room/hvac/temperature/current",sz);
     sprintf(sz, "%6.2f", humidityRH);
-    client.publish("roomhvac/humidity/current",sz);
-    if (state_act_lights1 == true) {
-        client.publish("room/switch/lights1","ON");
-    } else {
-        client.publish("room/switch/lights1","OFF");
-    }
-  
-    if (state_act_lights1 == true) {
-        client.publish("room/switch/lights1/state","ON");
-    } else {
-        client.publish("room/switch/lights1/state","OFF");
-    }
- 
+    client.publish("room/hvac/humidity/current",sz);
+
+
   }
 }
