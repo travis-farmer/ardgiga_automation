@@ -2,7 +2,7 @@
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <WiFi.h>
-
+#include <dtostrf.h>
 #include "arduino_secrets.h" 
 ///////please enter your sensitive data in the Secret tab/arduino_secrets.h
 char ssid[] = WSSID;        // your network SSID (name)
