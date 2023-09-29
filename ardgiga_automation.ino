@@ -2,7 +2,6 @@
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <WiFi.h>
-#include <dtostrf.h>
 #include "arduino_secrets.h" 
 ///////please enter your sensitive data in the Secret tab/arduino_secrets.h
 char ssid[] = WSSID;        // your network SSID (name)
@@ -210,9 +209,9 @@ void loop() {
     else {strAction = "off";}
     strAction.toCharArray(sz, 32);
     client.publish("roomhvac/action",sz);
-    dtostrf(tempF, 4, 2, sz);
+    sprintf(sz, "%6.2f", tempF);
     client.publish("roomhvac/temperature/current",sz);
-    dtostrf(humidityRH, 4, 2, sz);
+    sprintf(sz, "%6.2f", humidityRH);
     client.publish("roomhvac/humidity/current",sz);
     if (state_act_lights1 == true) {
         client.publish("room/switch/lights1","ON");
