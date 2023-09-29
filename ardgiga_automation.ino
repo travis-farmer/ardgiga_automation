@@ -21,10 +21,7 @@ DHTNEW mySensor(48);
 
 
 // Update these with values suitable for your hardware/network.
-byte mac[]    = {  0xDE, 0xED, 0xBA, 0xFE, 0xFE, 0xBE };
 IPAddress server(192, 168, 1, 100);
-IPAddress ip(192, 168, 0, 29);
-IPAddress myDns(192, 168, 0, 1);
 
 WiFiClient wClient;
 PubSubClient client(wClient);
