@@ -4,6 +4,8 @@
 #include <WiFi.h>
 #include "arduino_secrets.h"
 #include <ModbusRTUMaster.h>
+#include "Nextion.h"
+
 ///////please enter your sensitive data in the Secret tab/arduino_secrets.h
 char ssid[] = WSSID;        // your network SSID (name)
 char pass[] = WPSWD;        // your network password (use for WPA, or use as key for WEP)
@@ -23,6 +25,19 @@ int status = WL_IDLE_STATUS;
 ModbusRTUMaster modbus(Serial1, MODBUS_DE); // serial port, driver enable pin for rs-485 (optional)
 
 DHTNEW mySensor(48);
+
+NexText nexTempF = NexText(0, 2, "tempf");
+NexButton nexB0P0 = NexButton(0, 6, "b0p0");
+NexButton nexB1P0 = NexButton(0, 7, "b1p0");
+NexButton nexB2P0 = NexButton(0, 8, "b2p0");
+
+NexTouch *nex_listen_list[] =
+{
+    &nexB0P0,
+    &nexB1P0,
+    &nexB2P0,
+    NULL
+};
 
 
 // Update these with values suitable for your hardware/network.
@@ -44,13 +59,13 @@ bool stateCooling = false;
 bool stateFan = false;
 bool stateCool = false;
 bool stateLights1 = false;
-bool stateLights1SW = false;
+bool stateLights1SW = true;
 bool state_act_lights1 = false;
 bool stateLights2 = false;
-bool stateLights2SW = false;
+bool stateLights2SW = true;
 bool state_act_lights2 = false;
 bool stateLights3 = false;
-bool stateLights3SW = false;
+bool stateLights3SW = true;
 bool state_act_lights3 = false;
 unsigned long coolTimer = 0UL;
 bool setLights1 = false;
@@ -62,6 +77,46 @@ bool coils[2];
 bool discreteInputs[2];
 uint16_t holdingRegisters[2];
 uint16_t inputRegisters[3];
+
+void nexB0P0PopCallback(void *ptr)
+{
+    if (stateLights1SW == true)
+    {
+        stateLights1SW = false;
+        nexB0P0.setText("Turn ON");
+    }
+    else
+    {
+        stateLights1SW = true;
+        nexB0P0.setText("Turn OFF");
+    }
+}
+void nexB1P0PopCallback(void *ptr)
+{
+    if (stateLights2SW == true)
+    {
+        stateLights2SW = false;
+        nexB1P0.setText("Turn ON");
+    }
+    else
+    {
+        stateLights2SW = true;
+        nexB1P0.setText("Turn OFF");
+    }
+}
+void nexB2P0PopCallback(void *ptr)
+{
+    if (stateLights3SW == true)
+    {
+        stateLights3SW = false;
+        nexB2P0.setText("Turn ON");
+    }
+    else
+    {
+        stateLights3SW = true;
+        nexB2P0.setText("Turn OFF");
+    }
+}
 
 boolean reconnect()
 {
@@ -124,6 +179,7 @@ void callback(char* topic, byte* payload, unsigned int length)
 
 void setup()
 {
+    nexInit();
     client.setServer(server, 1883);
     client.setCallback(callback);
 
@@ -157,10 +213,18 @@ void setup()
         digitalWrite(i,HIGH);
     }
 
+
+
+    /* Register the pop event callback function of the current button component. */
+    nexB0P0.attachPop(nexB0P0PopCallback, &nexB0P0);
+    nexB1P0.attachPop(nexB1P0PopCallback, &nexB1P0);
+    nexB2P0.attachPop(nexB2P0PopCallback, &nexB2P0);
+
 }
 
 void loop()
 {
+    nexLoop(nex_listen_list);
     if (!client.connected())
     {
         long now = millis();
@@ -207,14 +271,14 @@ void loop()
         {
             stateLights1 = false;
         }
-        if (discreteInputs[0] == false)
+        /*if (discreteInputs[0] == false)
         {
             stateLights1SW = true;
         }
         else
         {
             stateLights1SW = false;
-        }
+        }*/
         if (stateLights1 == stateLights1SW)
         {
             digitalWrite(RELAY_LIGHTS1,HIGH);
@@ -229,10 +293,12 @@ void loop()
         if (state_act_lights1 == true)
         {
             client.publish("room/switch/lights1","ON");
+            nexB0P0.setText("Turn OFF");
         }
         else
         {
             client.publish("room/switch/lights1","OFF");
+            nexB0P0.setText("Turn ON");
         }
 
 
@@ -244,14 +310,14 @@ void loop()
         {
             stateLights2 = false;
         }
-        if (discreteInputs[1] == false)
+        /*if (discreteInputs[1] == false)
         {
             stateLights2SW = true;
         }
         else
         {
             stateLights2SW = false;
-        }
+        }*/
         if (stateLights2 == stateLights2SW)
         {
             digitalWrite(RELAY_LIGHTS2,HIGH);
@@ -266,10 +332,12 @@ void loop()
         if (state_act_lights2 == true)
         {
             client.publish("room/switch/lights2","ON");
+            nexB1P0.setText("Turn OFF");
         }
         else
         {
             client.publish("room/switch/lights2","OFF");
+            nexB1P0.setText("Turn ON");
         }
 
 
@@ -281,14 +349,14 @@ void loop()
         {
             stateLights3 = false;
         }
-        if (discreteInputs[2] == false)
+        /*if (discreteInputs[2] == false)
         {
             stateLights3SW = true;
         }
         else
         {
             stateLights3SW = false;
-        }
+        }*/
         if (stateLights3 == stateLights3SW)
         {
             digitalWrite(RELAY_LIGHTS3,HIGH);
@@ -303,10 +371,12 @@ void loop()
         if (state_act_lights3 == true)
         {
             client.publish("room/switch/lights3","ON");
+            nexB2P0.setText("Turn OFF");
         }
         else
         {
             client.publish("room/switch/lights3","OFF");
+            nexB2P0.setText("Turn ON");
         }
 
         /** \brief handle thermostat
@@ -405,6 +475,7 @@ void loop()
         strAction.toCharArray(sz, 32);
         client.publish("room/hvac/action",sz);
         sprintf(sz, "%6.2f", tempF);
+        nexTempF.setText(sz);
         client.publish("room/hvac/temperature/current",sz);
         sprintf(sz, "%6.2f", humidityRH);
         client.publish("room/hvac/humidity/current",sz);
